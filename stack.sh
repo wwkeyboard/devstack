@@ -1344,27 +1344,37 @@ function screen_rc {
     fi
 }
 
+USE_TMUX=true
+
 # Our screen helper to launch a service in a hidden named screen
 function screen_it {
     NL=`echo -ne '\015'`
     if is_service_enabled $1; then
-        # Append the service to the screen rc file
-        screen_rc "$1" "$2"
-
-        screen -S stack -X screen -t $1
-        # sleep to allow bash to be ready to be send the command - we are
-        # creating a new window in screen and then sends characters, so if
-        # bash isn't running by the time we send the command, nothing happens
-        sleep 1.5
-        screen -S stack -p $1 -X stuff "$2$NL"
+	if $USE_TMUX; then
+	    tmux new-window -d -n $1
+	    tmux send-keys -t stack:$1 "$2$NL" C-m
+	else
+            # Append the service to the screen rc file
+            screen_rc "$1" "$2"
+            screen -S stack -X screen -t $1
+            # sleep to allow bash to be ready to be send the command - we are
+            # creating a new window in screen and then sends characters, so if
+            # bash isn't running by the time we send the command, nothing happens
+            sleep 1.5
+            screen -S stack -p $1 -X stuff "$2$NL"
+	fi
     fi
 }
 
-# create a new named screen to run processes in
-screen -d -m -S stack -t stack -s /bin/bash
-sleep 1
-# set a reasonable statusbar
-screen -r stack -X hardstatus alwayslastline "%-Lw%{= BW}%50>%n%f* %t%{-}%+Lw%< %= %H"
+if $USE_TMUX; then
+    tmux new-session -d -s stack
+else
+    # create a new named screen to run processes in
+    screen -d -m -S stack -t stack -s /bin/bash
+    sleep 1
+    # set a reasonable statusbar
+    screen -r stack -X hardstatus alwayslastline "%-Lw%{= BW}%50>%n%f* %t%{-}%+Lw%< %= %H"
+fi
 
 # launch the glance registry service
 if is_service_enabled g-reg; then
