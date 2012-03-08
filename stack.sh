@@ -1367,6 +1367,10 @@ function screen_it {
 }
 
 if $USE_TMUX; then
+    if tmux ls | egrep stack; then
+	echo "--- killing old tmux"
+	tmux kill-session -t stack
+    fi
     tmux new-session -d -s stack
 else
     # create a new named screen to run processes in
